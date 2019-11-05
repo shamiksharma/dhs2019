@@ -1,5 +1,4 @@
 from tensorflow import keras
-from pose_classifier import get_pose
 from camera import Camera
 import poselib
 import numpy as np
@@ -37,6 +36,18 @@ class SlowMethodThread(threading.Thread):
         self.q.queue.clear()
         return o
 
+
+def get_pose(detector, image):
+    image, flag, raw_kp, scores = detector.detect(image, crop=False)
+    if raw_kp is None:
+        return None
+    kp = np.asarray(raw_kp)
+    kp[:, 0] = (kp[:, 0] - min(kp[:, 0]))/ (max(kp[:, 0]) - min(kp[:, 0]))
+    kp[:, 1] = (kp[:, 1] - min(kp[:, 1]))/ (max(kp[:, 1]) - min(kp[:, 1]))
+    scores = np.expand_dims(np.asarray(scores), axis=-1)
+    kp = np.hstack((kp, scores))
+    return kp, raw_kp
+
 class Display:
     def __init__(self, width):
         self.width = width
@@ -67,17 +78,18 @@ class Display:
 def get_target_poses(images, detector):
     poses = []
     good_images = []
-
+    keypoints = []
     for image in tqdm(images):
-        pose = get_pose(detector, image)
+        pose, keypoint = get_pose(detector, image)
         image = detector.prepare_image(image)
         if pose is None:
             continue
 
         poses.append(pose)
         good_images.append(image)
+        keypoints.append(keypoint)
 
-    return good_images, poses
+    return good_images, poses, keypoints
 
 def exerciser(images, matcher_model, kalman_model):
     fast_detector = poselib.PoseDetector(fast_mode)
@@ -106,7 +118,7 @@ def exerciser(images, matcher_model, kalman_model):
     for i in range(10000000):
         target_pose, target_image = target_poses[target_index], target_images[target_index]
         image, count = cam.get()
-        pose = get_pose(fast_detector, image)
+        pose, keypoints = get_pose(fast_detector, image)
         user_image = fast_detector.prepare_image(image)
 
         if pose is None:
@@ -117,10 +129,6 @@ def exerciser(images, matcher_model, kalman_model):
                 corrected_pose = temporal_correction.update(pose)
                 pose = corrected_pose
             score = matcher.similarity(pose, target_pose)
-
-        heatmap = segmenter.segment(user_image)
-        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR) / 255.
-        user_image = np.asarray(user_image * heatmap, dtype=np.uint8)
 
         display.render(user_image, target_image, score)
         if score > .96:

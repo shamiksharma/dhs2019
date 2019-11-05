@@ -138,7 +138,7 @@ class PoseCorrector:
     def __init__(self, model_path):
         self.model = keras.models.load_model(model_path)
 
-    def update_state(self, pose):
+    def update(self, pose):
         pose = np.expand_dims(pose, axis=-1)
         predicted = self.model.predict(pose)
         return predicted
