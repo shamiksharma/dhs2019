@@ -5,13 +5,18 @@ from tflitemodel import TFLiteModel
 import numpy as np
 
 pose_detection_tpu = "../weights/tpumodels/posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite"
+pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_513x513_multi_kpt_stripped.tflite"
+
 openpose_proto = "../weights/openpose/coco/pose_deploy_linevec.prototxt"
 openpose_model = "../weights/openpose/coco/pose_iter_440000.caffemodel"
+
 segmentation_cpu_10fps = "../weights/mnv2_10fps_unet/quant.tflite"
 segmentation_cpu_30fps = "../weights/mnv2_unet_128/quant.tflite"
 
+
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
+WHITE = (255,255,255)
 
 KEYPOINTS = (
     'nose',
@@ -208,8 +213,8 @@ class PoseDetector:
         self.h = 481
         if mode == 'tpu':
             self.detector = TPUPoseLib()
-        elif mode == 'opencv':
-            self.detector = OpenCVDetector(openpose_proto, openpose_model, self.w, self.h, 0.003922)
+        elif mode == 'cpu':
+            self.detector = CPUTFLitePoseLib()
         else:
             self.detector = OpenPoseDetector()
 
@@ -241,7 +246,8 @@ class PoseDetector:
             pt1 = keypoints[node_i]
             pt2 = keypoints[node_j]
             if scores[node_i] > 0.5 and scores[node_j] > 0.5:
-                cv2.line(image, pt1, pt2, RED, lineType=cv2.LINE_AA)
+                cv2.line(image, pt1, pt2, WHITE, 3, lineType=cv2.LINE_AA)
+                cv2.ellipse(image, pt1, (3, 3), 0, 0, 360, (0, 0, 255), cv2.FILLED)
 
         return image
 
@@ -262,13 +268,41 @@ class PersonSegmentation(TFLiteModel):
         heatmap = cv2.resize(heatmap, (imshape[1], imshape[0]))
         return heatmap
 
-def demo(cam):
-    detector = PoseDetector('openpose')
+class CPUTFLitePoseLib(TFLiteModel):
+    def __init__(self):
+        model_path = pose_detection_cpu
+        self.load_model(model_path)
+
+    def sigmoid(self, X):
+        return 1 / (1 + np.exp(-X))
+
+    def detect(self, image):
+        image = self.preprocess(image)
+        interpretation = self.get_model_output(image)
+        heatmap, offsets = interpretation[0], interpretation[1]
+        heatmap = self.sigmoid(heatmap)
+        channels = heatmap.shape[-1]
+        points = []
+        scores = []
+        size = heatmap.shape[0]
+        r = float(self.width / size)
+        for i in range(channels):
+            _, conf, _, point = cv2.minMaxLoc(heatmap[:,:,0])
+            offset = (offsets[point][i], offsets[point][i*2])
+            point = (int(point[0]*r + offset[0]), int(point[1]*r+offset[1]))
+            points.append(point)
+            scores.append(conf)
+
+        return True, points, scores
+
+def demo(cam, mode='tpu'):
+    detector = PoseDetector(mode)
     # segmenter = PersonSegmentation(False)
     cam.start()
+
     for i in tqdm(range(10000)):
         frame, count = cam.get()
-        image, pose_flag, keypoints, scores = detector.detect(frame)
+        image, pose_flag, keypoints, scores = detector.detect(frame, crop=False)
         # heatmap = segmenter.segment(image)
         # heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR) / 255.
         # image = image * heatmap
@@ -282,6 +316,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", default=None, required=True)
+    parser.add_argument("--mode", default=None, required=True)
 
     args = parser.parse_args()
     path = args.path
@@ -290,4 +325,5 @@ if __name__ == "__main__":
         path = int(args.path)
 
     cam = Camera(path, 30)
-    demo(cam)
+    demo(cam, args.mode)
+
