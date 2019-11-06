@@ -252,11 +252,12 @@ class PoseDetector:
         return image
 
 class PersonSegmentation(TFLiteModel):
-    def __init__(self, fast):
-        if fast:
-            model_path = segmentation_cpu_30fps
-        else:
-            model_path = segmentation_cpu_10fps
+    def __init__(self, fast, model_path=None):
+        if model_path is None:
+            if fast:
+                model_path = segmentation_cpu_30fps
+            else:
+                model_path = segmentation_cpu_10fps
 
         self.load_model(model_path)
 

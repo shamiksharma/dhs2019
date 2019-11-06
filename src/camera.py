@@ -30,16 +30,22 @@ class Camera(threading.Thread):
         return o
 
 
+    def stop(self):
+        self.capture.release()
+
 def main():
     q = Camera()
     q.start()
+
     from tqdm import tqdm
-    for i in tqdm(range(1000)):
+    for i in tqdm(range(100)):
         image, frame_count = q.get()
         delay = random.randint(100, 200)
         # print (f"delay {delay} frame {frame_count}")
         processed_image = dummy(image, delay)
         cv2.imshow("window", processed_image)
+
+    q.stop()
 
 def dummy(frame, t):
     cv2.waitKey(t)

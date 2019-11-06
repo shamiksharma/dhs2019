@@ -4,40 +4,17 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 logging.getLogger("tensorflow").setLevel(logging.CRITICAL)
 logging.getLogger("tensorflow_hub").setLevel(logging.CRITICAL)
 
-import segmentation_models as sm
-sm.set_framework('tf.keras')
 
 from utils import (data_path, Display, get_train_data, DisplayCallback, DataGenerator)
-from tensorflow.keras.optimizers import Adam
-from tensorflow import keras
 import tensorflow as tf
+from common import lr_schedule, get_segmentation_model
 
-def lr_schedule():
-    def lrs(epoch):
-        lr = 0.0002
-        if epoch >= 1: lr = 0.0001
-        if epoch >= 5: lr = 0.00005
-        if epoch >= 10: lr = 0.00001
-        return lr
-    return keras.callbacks.LearningRateScheduler(lrs, verbose=True)
 
 def train(output_dir):
     img_size = 128
     batch_size = 16
 
-    model = sm.Unet('mobilenetv2',
-                    input_shape=(img_size, img_size, 3),
-                    classes=1,
-                    activation='sigmoid',
-                    decoder_filters=(128, 64, 32, 32, 16),
-                    encoder_weights='imagenet')
-
-    print (model.summary())
-
-    model.compile(optimizer=Adam(learning_rate=0.001),
-                  loss=sm.losses.bce_jaccard_loss,
-                  metrics=[sm.metrics.iou_score])
-
+    model = get_segmentation_model(img_size)
 
     data = get_train_data()
     val_split = 0.1
@@ -70,7 +47,8 @@ def train(output_dir):
 
     model.load_weights(model_path)
     tf.saved_model.save(model, output_dir + "/saved_model/")
-
+    return model
+    
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

@@ -10,7 +10,8 @@ from utils import DataGenerator, get_train_data
 
 def compress(saved_model_path, tflite_model_path, img_size, quantize=None, device=None):
     converter = lite.TFLiteConverter.from_saved_model(saved_model_path)
-    # converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter.target_spec.supported_types = [tf.float16]
 
     if quantize:
         sample_dataset = DataGenerator(get_train_data(), 10, img_size).sample()
@@ -40,4 +41,4 @@ if __name__ == "__main__":
 
 
     args = parser.parse_args()
-    compress(args.saved_model, args.output, int(args.imgsize), quantize=True)
+    compress(args.saved_model, args.output, int(args.imgsize), quantize=False)
