@@ -302,7 +302,7 @@ def demo(cam, mode='tpu'):
 
     for i in tqdm(range(10000)):
         frame, count = cam.get()
-        image, pose_flag, keypoints, scores = detector.detect(frame, crop=False)
+        image, pose_flag, keypoints, scores = detector.detect(frame)
         # heatmap = segmenter.segment(image)
         # heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR) / 255.
         # image = image * heatmap
