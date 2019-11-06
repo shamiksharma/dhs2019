@@ -10,9 +10,7 @@ from utils import DataGenerator, get_train_data
 
 def compress(saved_model_path, tflite_model_path, img_size, quantize=None, device=None):
     converter = lite.TFLiteConverter.from_saved_model(saved_model_path)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    converter.target_spec.supported_types = [tf.float16]
-
+    
     if quantize:
         sample_dataset = DataGenerator(get_train_data(), 10, img_size).sample()
         sample_images = sample_dataset[0]
@@ -22,9 +20,8 @@ def compress(saved_model_path, tflite_model_path, img_size, quantize=None, devic
             yield [sample_images[index:index+1]]
 
         converter.representative_dataset = tf.lite.RepresentativeDataset(representative_dataset_gen)
-        converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8, tf.lite.OpsSet.SELECT_TF_OPS]
-        converter.inference_input_type = tf.uint8
-        converter.inference_output_type = tf.uint8
+        converter.optimizations = [tf.lite.Optimize.DEFAULT]
+        converter.target_spec.supported_types = [tf.float16]
 
 
     tflite_model = converter.convert()

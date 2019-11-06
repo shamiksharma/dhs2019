@@ -96,7 +96,7 @@ def exerciser(images, matcher_model, kalman_model):
     accurate_detector = poselib.PoseDetector(accurate_mode)
 
     matcher = DeepPoseMatcher(poses=None, model_path=matcher_model)
-    target_images, target_poses = get_target_poses(images, accurate_detector)
+    target_images, target_poses, keypoints = get_target_poses(images, accurate_detector)
 
     segmenter = poselib.PersonSegmentation(False)
 
@@ -120,6 +120,7 @@ def exerciser(images, matcher_model, kalman_model):
         image, count = cam.get()
         pose, keypoints = get_pose(fast_detector, image)
         user_image = fast_detector.prepare_image(image)
+        fast_detector.draw(pose)
 
         if pose is None:
             score = 0

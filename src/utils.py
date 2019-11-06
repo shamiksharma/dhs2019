@@ -4,7 +4,7 @@ from tensorflow import keras
 import numpy as np
 
 
-data_path = Path('../data/').expanduser()
+data_path = Path('../data/supervisely_segmentation/').expanduser()
 
 images_dir = data_path/'img'
 masks_dir = data_path/'masks'
