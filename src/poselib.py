@@ -5,7 +5,7 @@ from tflitemodel import TFLiteModel
 import numpy as np
 
 pose_detection_tpu = "../weights/tpumodels/posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite"
-pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_513x513_multi_kpt_stripped.tflite"
+pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite"
 
 openpose_proto = "../weights/openpose/coco/pose_deploy_linevec.prototxt"
 openpose_model = "../weights/openpose/coco/pose_iter_440000.caffemodel"
@@ -209,8 +209,8 @@ class OpenPoseDetector:
 
 class PoseDetector:
     def __init__(self, mode='tpu'):
-        self.w = 641
-        self.h = 481
+        self.w = 257
+        self.h = 257
         if mode == 'tpu':
             self.detector = TPUPoseLib()
         elif mode == 'cpu':
@@ -248,8 +248,8 @@ class PoseDetector:
             pt1 = keypoints[node_i]
             pt2 = keypoints[node_j]
             if scores[node_i] > 0.5 and scores[node_j] > 0.5:
-                cv2.line(image, pt1, pt2, WHITE, 3, lineType=cv2.LINE_AA)
-                cv2.ellipse(image, pt1, (3, 3), 0, 0, 360, (0, 0, 255), cv2.FILLED)
+                cv2.line(image, pt1, pt2, WHITE, 1, lineType=cv2.LINE_AA)
+
 
         return image
 
@@ -280,21 +280,24 @@ class CPUTFLitePoseLib(TFLiteModel):
         return 1 / (1 + np.exp(-X))
 
     def detect(self, image):
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        cv2.imshow("test", image)
         image = self.preprocess(image)
         interpretation = self.get_model_output(image)
         heatmap, offsets = interpretation[0], interpretation[1]
-        heatmap = self.sigmoid(heatmap)
+        # heatmap = self.sigmoid(heatmap)
         channels = heatmap.shape[-1]
         points = []
         scores = []
         size = heatmap.shape[0]
-        r = float(self.width / size)
+        r = float(self.width / (size - 1) )
+
         for i in range(channels):
-            _, conf, _, point = cv2.minMaxLoc(heatmap[:,:,0])
-            offset = (offsets[point][i], offsets[point][i*2])
-            point = (int(point[0]*r + offset[0]), int(point[1]*r+offset[1]))
-            points.append(point)
-            scores.append(conf)
+            _, conf, _, point = cv2.minMaxLoc(heatmap[:,:,i])
+            offset = (offsets[point[1], point[0]][i], offsets[point[1],point[0]][i + channels])
+            keypoint = (int(point[0]*r + offset[1]), int(point[1]*r + offset[0]))
+            points.append(keypoint)
+            scores.append(self.sigmoid(conf))
 
         return True, points, scores
 
