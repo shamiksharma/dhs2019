@@ -8,10 +8,11 @@ from tqdm import tqdm
 from pose_matching import DeepPoseMatcher
 from kalman_pose import PoseCorrector
 import threading
-from queue import LifoQueue
+from queue import LifoQueue, Queue
+from collections import deque
 
 fast_mode = 'tpu'
-accurate_mode = 'tpu'
+accurate_mode = 'cpu'
 
 class SlowMethodThread(threading.Thread):
     def __init__(self, slowmethod, callback):
@@ -40,7 +41,7 @@ class SlowMethodThread(threading.Thread):
 def get_pose(detector, image):
     image, flag, raw_kp, scores = detector.detect(image, crop=False)
     if raw_kp is None:
-        return None
+        return None, None
     kp = np.asarray(raw_kp)
     kp[:, 0] = (kp[:, 0] - min(kp[:, 0]))/ (max(kp[:, 0]) - min(kp[:, 0]))
     kp[:, 1] = (kp[:, 1] - min(kp[:, 1]))/ (max(kp[:, 1]) - min(kp[:, 1]))
@@ -72,7 +73,6 @@ class Display:
         cv2.rectangle(image, (textX-padding, textY+padding), (textX+textsize[0]+padding, textY - textsize[1]-padding),
                       thickness=-1, color=(0,0,0))
         cv2.putText(image, text, (textX, textY), font, 2, (255, 0, 255), lineType=cv2.LINE_AA, thickness=2)
-
 
 
 def get_target_poses(images, detector):
@@ -113,14 +113,23 @@ def exerciser(images, matcher_model, kalman_model):
 
     target_index = 0
 
-    display = Display(400)
+    display = Display(600)
+
+    scores = deque([0 for i in range(10)])
+
+    kp_scores = [1 for i in range(17)]
+
+    n_frames_pose = 0
+    max_frames_pose = 100
+
 
     for i in range(10000000):
         target_pose, target_image = target_poses[target_index], target_images[target_index]
         image, count = cam.get()
         pose, keypoints = get_pose(fast_detector, image)
-        user_image = fast_detector.prepare_image(image)
-        fast_detector.draw(pose)
+
+        user_image = fast_detector.prepare_image(image, flip=False)
+        fast_detector.draw(user_image, keypoints, kp_scores)
 
         if pose is None:
             score = 0
@@ -131,9 +140,22 @@ def exerciser(images, matcher_model, kalman_model):
                 pose = corrected_pose
             score = matcher.similarity(pose, target_pose)
 
-        display.render(user_image, target_image, score)
-        if score > .96:
+        scores.appendleft(score)
+        scores.pop()
+
+        average_score = sum(scores) / len(scores)
+        display.render(user_image, target_image, average_score)
+        n_frames_pose += 1
+        if n_frames_pose > max_frames_pose:
+            n_frames_pose = 0
             target_index += 1
+            scores = deque([0 for i in range(10)])
+            continue
+
+        # if average_score > .90:
+        #     target_index += 1
+        #     scores = deque([0 for i in range(10)])
+
 
 if __name__ == "__main__":
     import argparse

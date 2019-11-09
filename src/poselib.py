@@ -219,8 +219,10 @@ class PoseDetector:
             self.detector = OpenPoseDetector()
 
 
-    def prepare_image(self, frame):
-        frame = cv2.flip(frame, 1)
+    def prepare_image(self, frame, flip=True):
+        if flip:
+            frame = cv2.flip(frame, 1)
+
         frame = crop(frame, self.w, self.h)
         frame = cv2.resize(frame, (self.w, self.h))
         return frame
@@ -325,6 +327,6 @@ if __name__ == "__main__":
     if str.isdigit(args.path):
         path = int(args.path)
 
-    cam = Camera(path, 30)
+    cam = Camera(path, 60)
     demo(cam, args.mode)
 
