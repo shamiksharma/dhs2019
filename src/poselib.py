@@ -219,8 +219,10 @@ class PoseDetector:
             self.detector = OpenPoseDetector()
 
 
-    def prepare_image(self, frame):
-        frame = cv2.flip(frame, 1)
+    def prepare_image(self, frame, flip=True):
+        if flip:
+            frame = cv2.flip(frame, 1)
+
         frame = crop(frame, self.w, self.h)
         frame = cv2.resize(frame, (self.w, self.h))
         return frame
