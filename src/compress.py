@@ -10,7 +10,7 @@ from utils import DataGenerator, get_train_data
 
 def compress(saved_model_path, tflite_model_path, img_size, quantize=None, device=None):
     converter = lite.TFLiteConverter.from_saved_model(saved_model_path)
-    
+
     if quantize:
         sample_dataset = DataGenerator(get_train_data(), 10, img_size).sample()
         sample_images = sample_dataset[0]

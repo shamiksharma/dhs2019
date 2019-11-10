@@ -10,8 +10,8 @@ from kalman_pose import PoseCorrector
 import threading
 from queue import LifoQueue
 
-fast_mode = 'tpu'
-accurate_mode = 'tpu'
+fast_mode = 'cpu'
+accurate_mode = 'cpu'
 
 class SlowMethodThread(threading.Thread):
     def __init__(self, slowmethod, callback):
@@ -120,7 +120,7 @@ def exerciser(images, matcher_model, kalman_model):
         image, count = cam.get()
         pose, keypoints = get_pose(fast_detector, image)
         user_image = fast_detector.prepare_image(image)
-        fast_detector.draw(pose)
+        fast_detector.draw(pose, keypoints)
 
         if pose is None:
             score = 0

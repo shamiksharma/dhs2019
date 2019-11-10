@@ -328,6 +328,6 @@ if __name__ == "__main__":
     if str.isdigit(args.path):
         path = int(args.path)
 
-    cam = Camera(path, 60)
+    cam = Camera(path, 200)
     demo(cam, args.mode)
 
