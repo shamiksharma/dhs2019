@@ -17,7 +17,7 @@ segmentation_cpu_30fps = "../weights/mnv2_unet_128/quant.tflite"
 
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
-WHITE = (255,255,255)
+WHITE = (0,0,0)
 
 KEYPOINTS = (
     'nose',
@@ -105,7 +105,7 @@ class TPUPoseLib:
     def detect(self, original_image_int):
         pose_image_int = cv2.cvtColor(original_image_int, cv2.COLOR_BGR2RGB)
         pose_flag, pose1_kp, pose1_scores = False, None, None
-        pose_image_int = crop(pose_image_int, self.pose.image_width, self.pose.image_height)
+        pose_image_int = utils.crop(pose_image_int, self.pose.image_width, self.pose.image_height)
         pose_image_int = cv2.resize(pose_image_int, (self.width, self.height))
         poses_kp, poses_scores = self.pose.detect(pose_image_int)
 
@@ -153,14 +153,16 @@ class OpenPoseDetector:
 
 class PoseDetector:
     def __init__(self, mode='tpu'):
-        self.w = 257
-        self.h = 257
+
         if mode == 'tpu':
             self.detector = TPUPoseLib()
         elif mode == 'cpu':
             self.detector = CPUTFLitePoseLib()
         else:
             self.detector = OpenPoseDetector()
+
+        self.w = self.detector.width
+        self.h = self.detector.height
 
 
     def prepare_image(self, frame, crop=True, pad=True):
@@ -193,7 +195,8 @@ class PoseDetector:
             pt2 = keypoints[node_j]
             if scores[node_i] > 0.5 and scores[node_j] > 0.5:
                 cv2.line(image, pt1, pt2, WHITE, 1, lineType=cv2.LINE_AA)
-
+            else:
+                cv2.line(image, pt1, pt2, WHITE, 1, lineType=cv2.LINE_AA)
 
         return image
 
@@ -251,7 +254,7 @@ def demo(cam, mode='tpu'):
 
     for i in tqdm(range(10000)):
         frame, count = cam.get()
-        image, pose_flag, keypoints, scores = detector.detect(frame, pad=True, crop=False)
+        image, pose_flag, keypoints, scores = detector.detect(frame, pad=False, crop=True)
         # heatmap = segmenter.segment(image)
         # heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR) / 255.
         # image = image * heatmap

@@ -1,5 +1,4 @@
 from tensorflow import keras
-from pose_classifier import get_pose
 from camera import Camera
 import poselib
 import numpy as np
@@ -7,6 +6,8 @@ import glob
 import cv2
 from sklearn.metrics.pairwise import cosine_similarity
 from tqdm import tqdm
+import utils
+from sklearn.preprocessing import normalize
 
 class DeepPoseMatcher:
     def __init__(self, poses, model_path):
@@ -34,7 +35,8 @@ class DeepPoseMatcher:
 
 class SimplePoseMatcher:
     def __init__(self, poses):
-        self.poses, self.scores = self.get_pose_score(poses)
+        if poses:
+            self.poses, self.scores = self.get_pose_score(poses)
 
     def get_pose_score(self, pose_scores):
         poses = np.asarray(pose_scores)[:,:,0:2]
@@ -48,6 +50,13 @@ class SimplePoseMatcher:
         best_index = np.argmax(distances)
         best_score = np.max(distances)
         return int(best_index), best_score
+
+    def similarity(self, pose1, pose2):
+        pose1, score1 = self.get_pose_score(np.expand_dims(pose1, axis=0))
+        pose2, score2 = self.get_pose_score(np.expand_dims(pose2, axis=0))
+        distances = cosine_similarity(pose1, pose2)
+        return distances
+
 
 def extract_embedder(model):
     model = keras.models.Model(model.layers[0].input, model.layers[-2].output)
@@ -65,14 +74,15 @@ def get_video_as_frames(video_path):
 
     return frames
 
-def test_matching(images, mode, model):
+def test_matching(images, mode, model, video):
     detector = poselib.PoseDetector(mode)
     poses = []
     good_images = []
 
     for image in tqdm(images):
-        pose = get_pose(detector, image)
-        image = detector.prepare_image(image)
+        image, flag, kp, scores = detector.detect(image, crop=False, pad=True)
+        pose = utils.pose_scores_to_vector(kp, scores)
+        image = detector.draw(image, kp, scores)
         if pose is None:
             continue
 
@@ -81,20 +91,31 @@ def test_matching(images, mode, model):
 
     images = good_images
 
-    matcher = DeepPoseMatcher(poses, model)
-    cam = Camera(0, 30)
+    matcher = SimplePoseMatcher(poses)
+
+    if str.isdigit(video):
+        video = int(video)
+
+    cam = Camera(video, 30)
     cam.start()
+
     for i in range(10000000):
         image, count = cam.get()
+        image = cv2.flip(image, 1)
+        image, flag, kp, scores = detector.detect(image, crop=True, pad=False)
+        pose = utils.pose_scores_to_vector(kp, scores)
+        image = detector.draw(image, kp, scores)
 
-        pose = get_pose(detector, image)
+        cv2.imshow("you", image)
+
         if pose is None:
             continue
 
         best_index, best_score = matcher.match(pose)
         print (best_score)
-        cv2.imshow("candidate", images[best_index])
-        cv2.imshow("you", image)
+        if best_score > 0.9:
+            cv2.imshow("candidate", images[best_index])
+
 
         cv2.waitKey(10)
 
@@ -105,11 +126,13 @@ if __name__ == "__main__":
     parser.add_argument("--images", default=None, required=True)
     parser.add_argument("--mode", default=None, required=True)
     parser.add_argument("--model", default=None, required=True)
+    parser.add_argument("--video", default=None, required=True)
+
     args = parser.parse_args()
 
     file_paths = list(glob.glob(args.images + "/*"))
     images = [cv2.imread(f) for  f in file_paths]
     if len(images) == 0:
-        images = get_video_as_frames(args.images)
+        images = get_video_as_frames(args.images)[:1000]
     print ("Num Images", len(images))
-    test_matching(images, args.mode, args.model)
+    test_matching(images, args.mode, args.model, args.video)

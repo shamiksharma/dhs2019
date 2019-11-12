@@ -169,6 +169,17 @@ def pad(image, width, height):
     padded_image = cv2.copyMakeBorder(new_img, pad_height, pad_height, pad_width, pad_width, cv2.BORDER_CONSTANT, value=(255,255,255))
     return padded_image
 
+def pose_scores_to_vector(kp, scores):
+    if kp is None:
+        return None
+    kp = np.asarray(kp)
+    kp[:, 0] = (kp[:, 0] - min(kp[:, 0]))/ (max(kp[:, 0]) - min(kp[:, 0]))
+    kp[:, 1] = (kp[:, 1] - min(kp[:, 1]))/ (max(kp[:, 1]) - min(kp[:, 1]))
+    scores = np.expand_dims(np.asarray(scores), axis=-1)
+    kp = np.hstack((kp, scores))
+    return kp
+
+
 def pad_test():
     import glob
     import sys
@@ -182,6 +193,8 @@ def pad_test():
             cv2.imshow("image", img_p)
             cv2.waitKey(-1)
         print ("=====")
+
+
 
 if __name__ == '__main__':
     pad_test()

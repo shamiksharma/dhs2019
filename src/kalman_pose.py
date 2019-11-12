@@ -8,7 +8,6 @@ import poselib
 import numpy as np
 from tqdm import tqdm
 from tensorflow import keras
-from pose_classifier import  get_pose
 
 cache_dir = "cache/"
 
