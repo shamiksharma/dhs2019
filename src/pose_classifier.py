@@ -11,7 +11,11 @@ import tensorflow as tf
 cache_dir = "cache/"
 
 def get_pose(detector, image):
-    image, flag, kp, scores = detector.detect(image, crop=False)
+    image, flag, kp, scores = detector.detect(image, crop=False, pad=True)
+    # detector.draw(image, kp, scores)
+    # cv2.imshow("image", image)
+    # cv2.waitKey(-1)
+    # print (scores)
     if kp is None:
         return None
     kp = np.asarray(kp)
@@ -100,6 +104,7 @@ def lr_schedule():
         if epoch >= 45: lr = 0.00005
         if epoch >= 60: lr = 0.00001
         return lr
+
     return keras.callbacks.LearningRateScheduler(lrs, verbose=True)
 
 
@@ -119,8 +124,8 @@ def test(images_dir, mode, output):
                                                       y)
 
     model = get_model(n_classes, num_features)
-    print (model.summary())
-    callbacks = [lr_schedule(), checkpoint(output + "pose_metric.hdf5")]
+    model = keras.models.load_model(output + "pose_metric.hdf5")
+    callbacks = [lr_schedule(), checkpoint(output + "pose_metric2.hdf5")]
     model.fit(X, y,
               validation_split=0.2,
               epochs=100,

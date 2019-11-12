@@ -2,6 +2,7 @@ from pathlib import Path
 import cv2
 from tensorflow import keras
 import numpy as np
+from edgetpu.utils import  image_processing
 
 
 data_path = Path('../data/supervisely_segmentation/').expanduser()
@@ -128,3 +129,59 @@ class DataGenerator(keras.utils.Sequence):
     def on_epoch_end(self):
         if self.shuffle == True:
             np.random.shuffle(self.data)
+
+def crop(image, width, height):
+    """
+    Crops an image to desired width / height ratio
+    :param image: image to crop
+    :param width: desired width
+    :param height: desired height
+    :return: returns an image cropped to width/height ratio
+    """
+    desired_ratio = width / height
+    image_width = image.shape[1]
+    image_height = image.shape[0]
+    image_ratio = image_width / image_height
+    new_width, new_height = image_width, image_height
+
+    # if original image is wider than desired image, crop across width
+    if image_ratio > desired_ratio:
+        new_width = int(image_height * desired_ratio)
+
+    # crop across height otherwise
+    elif image_ratio < desired_ratio:
+        new_height = int(image_width / desired_ratio)
+
+    image = image[image_height // 2 - new_height // 2: image_height // 2 + new_height // 2,
+            image_width // 2 - new_width // 2: image_width // 2 + new_width // 2]
+
+    return image
+
+def pad(image, width, height):
+    image_width = image.shape[1]
+    image_height = image.shape[0]
+
+    resize_ratio = min(width/image_width, height/image_height)
+    new_width, new_height = int(resize_ratio * image_width), int(resize_ratio * image_height)
+    new_img = cv2.resize(image, (new_width, new_height))
+    pad_width = (width - new_width) // 2
+    pad_height = (height - new_height) // 2
+    padded_image = cv2.copyMakeBorder(new_img, pad_height, pad_height, pad_width, pad_width, cv2.BORDER_CONSTANT, value=(255,255,255))
+    return padded_image
+
+def pad_test():
+    import glob
+    import sys
+    sizes = [(513, 513), (641, 481)]
+
+    for f in glob.glob(sys.argv[1] + "*.jpg"):
+        img = cv2.imread(f)
+        for size in sizes:
+            img_p = pad(img, size[0], size[1])
+            print (img.shape, img_p.shape, size)
+            cv2.imshow("image", img_p)
+            cv2.waitKey(-1)
+        print ("=====")
+
+if __name__ == '__main__':
+    pad_test()

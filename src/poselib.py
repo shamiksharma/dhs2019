@@ -3,6 +3,7 @@ from tqdm import tqdm
 from edgetpu.basic.basic_engine import BasicEngine
 from tflitemodel import TFLiteModel
 import numpy as np
+import utils
 
 pose_detection_tpu = "../weights/tpumodels/posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite"
 pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite"
@@ -69,61 +70,6 @@ for e1, e2 in EDGES:
 tf_coco_partmap = [0, 15, 14, 17, 16, 5, 2, 6, 3, 7, 4, 11, 8, 12, 9, 13, 10]
 tf_openpose_partmap = [0, 16, 15, 18, 17, 5, 2, 6, 3, 7, 4, 12, 9, 13, 10, 14, 11]
 
-
-def crop(image, width, height):
-    """
-    Crops an image to desired width / height ratio
-    :param image: image to crop
-    :param width: desired width
-    :param height: desired height
-    :return: returns an image cropped to width/height ratio
-    """
-    desired_ratio = width / height
-    image_width = image.shape[1]
-    image_height = image.shape[0]
-    image_ratio = image_width / image_height
-    new_width, new_height = image_width, image_height
-
-    # if original image is wider than desired image, crop across width
-    if image_ratio > desired_ratio:
-        new_width = int(image_height * desired_ratio)
-
-    # crop across height otherwise
-    elif image_ratio < desired_ratio:
-        new_height = int(image_width / desired_ratio)
-
-    image = image[image_height // 2 - new_height // 2: image_height // 2 + new_height // 2,
-            image_width // 2 - new_width // 2: image_width // 2 + new_width // 2]
-
-    return image
-
-class OpenCVDetector:
-    def __init__(self, proto, model, width, height, scale):
-        self.net = cv2.dnn.readNet(cv2.samples.findFile(proto), cv2.samples.findFile(model))
-        self.width = width
-        self.height = height
-        self.scale = scale
-
-    def detect(self, image):
-        frameWidth = image.shape[1]
-        frameHeight = image.shape[0]
-        inp = cv2.dnn.blobFromImage(image, self.scale, (self.width, self.height),
-                                    (0, 0, 0), swapRB=False, crop=False)
-        self.net.setInput(inp)
-        out = self.net.forward()
-
-        points = []
-        scores = []
-        for i in tf_coco_partmap:
-            heatMap = out[0, i, :, :]
-            _, conf, _, point = cv2.minMaxLoc(heatMap)
-            x = (frameWidth * point[0]) / out.shape[3]
-            y = (frameHeight * point[1]) / out.shape[2]
-            points.append((int(x), int(y)))
-            scores.append(conf)
-
-        return True, points, scores
-
 class TPUPose(BasicEngine):
     def __init__(self, model_path, mirror=False):
         BasicEngine.__init__(self, model_path)
@@ -140,8 +86,6 @@ class TPUPose(BasicEngine):
 
     def detect(self, img):
         assert (img.shape == tuple(self._input_tensor_shape[1:]))
-
-        # Run the inference (API expects the data to be flattened)
         inference_time, output = self.run_inference(img.flatten())
         outputs = [output[i:j] for i, j in zip(self._output_offsets, self._output_offsets[1:])]
 
@@ -219,17 +163,17 @@ class PoseDetector:
             self.detector = OpenPoseDetector()
 
 
-    def prepare_image(self, frame, flip=True):
-        if flip:
-            frame = cv2.flip(frame, 1)
+    def prepare_image(self, frame, crop=True, pad=True):
+        if crop:
+            frame = utils.crop(frame, self.w, self.h)
+        if pad:
+            frame = utils.pad(frame, self.w, self.h)
 
-        frame = crop(frame, self.w, self.h)
         frame = cv2.resize(frame, (self.w, self.h))
         return frame
 
-    def detect(self, image, crop=True):
-        if crop:
-            image = self.prepare_image(image)
+    def detect(self, image, crop=True, pad=True):
+        image = self.prepare_image(image, crop=crop, pad=pad)
         flag, kp, score = self.detector.detect(image)
         return image, flag, kp, score
 
@@ -281,7 +225,6 @@ class CPUTFLitePoseLib(TFLiteModel):
 
     def detect(self, image):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        cv2.imshow("test", image)
         image = self.preprocess(image)
         interpretation = self.get_model_output(image)
         heatmap, offsets = interpretation[0], interpretation[1]
@@ -308,7 +251,7 @@ def demo(cam, mode='tpu'):
 
     for i in tqdm(range(10000)):
         frame, count = cam.get()
-        image, pose_flag, keypoints, scores = detector.detect(frame)
+        image, pose_flag, keypoints, scores = detector.detect(frame, pad=True, crop=False)
         # heatmap = segmenter.segment(image)
         # heatmap = cv2.cvtColor(heatmap, cv2.COLOR_GRAY2BGR) / 255.
         # image = image * heatmap
@@ -330,6 +273,6 @@ if __name__ == "__main__":
     if str.isdigit(args.path):
         path = int(args.path)
 
-    cam = Camera(path, 200)
+    cam = Camera(path, 30)
     demo(cam, args.mode)
 

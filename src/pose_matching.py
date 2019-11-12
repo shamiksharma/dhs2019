@@ -11,7 +11,7 @@ from tqdm import tqdm
 class DeepPoseMatcher:
     def __init__(self, poses, model_path):
         tmp_model = keras.models.load_model(model_path)
-        self.model = extract_embedder(tmp_model)
+        self.model = tmp_model
 
         if poses:
             poses = np.asarray(poses)

@@ -11,11 +11,7 @@ import threading
 from queue import LifoQueue, Queue
 from collections import deque
 
-<<<<<<< HEAD
-fast_mode = 'cpu'
-=======
-fast_mode = 'tpu'
->>>>>>> 193cf2dd01bc748e157e526882040d8dc9098f2d
+fast_mode = 'openpose'
 accurate_mode = 'cpu'
 
 class SlowMethodThread(threading.Thread):
@@ -43,7 +39,7 @@ class SlowMethodThread(threading.Thread):
 
 
 def get_pose(detector, image):
-    image, flag, raw_kp, scores = detector.detect(image, crop=False)
+    image, flag, raw_kp, scores = detector.detect(image, crop=False, pad=True)
     if raw_kp is None:
         return None, None
     kp = np.asarray(raw_kp)
@@ -95,7 +91,7 @@ def get_target_poses(images, detector):
 
     return good_images, poses, keypoints
 
-def exerciser(images, matcher_model, kalman_model):
+def exerciser(images, matcher_model, kalman_model, video):
     fast_detector = poselib.PoseDetector(fast_mode)
     accurate_detector = poselib.PoseDetector(accurate_mode)
 
@@ -104,7 +100,11 @@ def exerciser(images, matcher_model, kalman_model):
 
     segmenter = poselib.PersonSegmentation(False)
 
-    cam = Camera(0, 30)
+
+    if str.isdigit(video):
+        video = int(video)
+
+    cam = Camera(video, 30)
     cam.start()
 
     temporal_correction = None
@@ -117,21 +117,21 @@ def exerciser(images, matcher_model, kalman_model):
 
     target_index = 0
 
-    display = Display(600)
+    display = Display(300)
 
     scores = deque([0 for i in range(10)])
 
     kp_scores = [1 for i in range(17)]
 
     n_frames_pose = 0
-    max_frames_pose = 100
+    max_frames_pose = 500
 
 
     for i in range(10000000):
         target_pose, target_image = target_poses[target_index], target_images[target_index]
         image, count = cam.get()
         pose, keypoints = get_pose(fast_detector, image)
-        user_image = fast_detector.prepare_image(image, flip=False)
+        user_image = fast_detector.prepare_image(image, crop=False, pad=True)
         fast_detector.draw(user_image, keypoints, kp_scores)
 
         if pose is None:
@@ -167,9 +167,13 @@ if __name__ == "__main__":
     parser.add_argument("--images", default=None, required=True)
     parser.add_argument("--matcher", default=None, required=True)
     parser.add_argument("--kalman", default=None, required=False)
+    parser.add_argument("--video", default=None, required=False)
+
     args = parser.parse_args()
 
     file_paths = list(glob.glob(args.images + "/*"))
     images = [cv2.imread(f) for  f in file_paths]
     print ("Num Images", len(images))
-    exerciser(images, args.matcher, args.kalman)
+
+
+    exerciser(images, args.matcher, args.kalman, args.video)
