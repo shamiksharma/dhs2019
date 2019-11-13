@@ -7,14 +7,15 @@ import numpy as np
 import cv2
 import time
 
-def runloop(image_size, video_path, big_model, small_model, slow=False):
+def runloop(image_size, video_path, big_model, small_model, small=False):
     cam = Camera(video_path, 60)
     cam.start()
     start = time.time()
     for i in tqdm(range(200), desc="Running model ... "):
         frame, count = cam.get()
+        frame = cv2.resize(frame, (frame.shape[1]//2, frame.shape[0]//2))
         frame_shape = frame.shape
-        if slow:
+        if not small:
             frame = cv2.resize(frame, (image_size, image_size)) / 255.
             frame = np.expand_dims(frame, axis=0)
             image = big_model.predict(frame)
@@ -22,6 +23,7 @@ def runloop(image_size, video_path, big_model, small_model, slow=False):
             image = cv2.resize(image, (frame_shape[1], frame_shape[0]))
         else:
             image = small_model.segment(frame)
+
 
         end = time.time()
         fps = int(i/(end - start))
@@ -36,9 +38,9 @@ def compare_speed(keras_model, tflite_model, video_path):
     big_model = get_segmentation_model(128)
     big_model.load_weights(keras_model)
     small_model = PersonSegmentation(True, tflite_model)
-    runloop(image_size, video_path, big_model, small_model, slow=False)
+    runloop(image_size, video_path, big_model, small_model, small=False)
     cv2.waitKey(-1)
-    runloop(image_size, video_path, big_model, small_model, slow=True)
+    runloop(image_size, video_path, big_model, small_model, small=True)
 
 if __name__ == "__main__":
     import argparse

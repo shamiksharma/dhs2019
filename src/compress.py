@@ -20,9 +20,9 @@ def compress(saved_model_path, tflite_model_path, img_size, quantize=None, devic
             yield [sample_images[index:index+1]]
 
         converter.representative_dataset = tf.lite.RepresentativeDataset(representative_dataset_gen)
+
         converter.optimizations = [tf.lite.Optimize.DEFAULT]
         converter.target_spec.supported_types = [tf.float16]
-
 
     tflite_model = converter.convert()
     x = open(tflite_model_path, "wb").write(tflite_model)
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--saved_model", default=None, required=True)
     parser.add_argument("--output", default=None, required=True)
-    parser.add_argument("--imgsize", default=256, required=False)
+    parser.add_argument("--imgsize", default=128, required=False)
 
 
     args = parser.parse_args()

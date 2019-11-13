@@ -10,21 +10,6 @@ import tensorflow as tf
 
 cache_dir = "cache/"
 
-def get_pose(detector, image):
-    image, flag, kp, scores = detector.detect(image, crop=False, pad=True)
-    # detector.draw(image, kp, scores)
-    # cv2.imshow("image", image)
-    # cv2.waitKey(-1)
-    # print (scores)
-    if kp is None:
-        return None
-    kp = np.asarray(kp)
-    kp[:, 0] = (kp[:, 0] - min(kp[:, 0]))/ (max(kp[:, 0]) - min(kp[:, 0]))
-    kp[:, 1] = (kp[:, 1] - min(kp[:, 1]))/ (max(kp[:, 1]) - min(kp[:, 1]))
-    scores = np.expand_dims(np.asarray(scores), axis=-1)
-    kp = np.hstack((kp, scores))
-    return kp
-
 def prepare_data(images_dir, mode='openpose', use_cache=True, num_samples=None):
     x_name, y_name= "x", "y"
 
@@ -49,7 +34,8 @@ def prepare_data(images_dir, mode='openpose', use_cache=True, num_samples=None):
         image = cv2.imread(image_path)
         if image is None:
             continue
-        kp = get_pose(detector, image)
+        image, flag, kp, scores = detector.detect(image, crop=False, pad=True)
+        kp = utils.pose_scores_to_vector(kp, scores)
         if kp is None:
             continue
         y.append(class_name)

@@ -12,11 +12,12 @@ from common import lr_schedule, get_segmentation_model
 
 def train(output_dir, epochs=1):
     img_size = 128
-    batch_size = 16
+    batch_size = 4
 
     model = get_segmentation_model(img_size)
+    print (model.summary())
 
-    data = get_train_data()
+    data = get_train_data()[:500]
     val_split = 0.1
     train_size = int(len(data)*(1 - val_split))
     train_data = data[:train_size]
@@ -26,7 +27,7 @@ def train(output_dir, epochs=1):
     val_generator = DataGenerator(val_data, batch_size, img_size)
 
     sample_batch = val_generator.sample()
-    display_callback = DisplayCallback(model, sample_batch, img_size, 600, 100, frequency=50)
+    display_callback = DisplayCallback(model, sample_batch, img_size, 600, 100, frequency=1)
 
     model_path = output_dir + "/weights.hdf5"
     cp = tf.keras.callbacks.ModelCheckpoint(filepath=model_path,

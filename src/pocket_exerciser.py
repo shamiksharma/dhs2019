@@ -5,7 +5,7 @@ import numpy as np
 import glob
 import cv2
 from tqdm import tqdm
-from pose_matching import DeepPoseMatcher, SimplePoseMatcher
+from pose_matching import DeepPoseMatcher, SimplePoseMatcher, get_video_as_frames
 from kalman_pose import PoseCorrector
 import threading
 from queue import LifoQueue, Queue
@@ -101,13 +101,13 @@ def exerciser(images, matcher_model, kalman_model, video):
     fast_detector = poselib.PoseDetector(fast_mode)
     accurate_detector = poselib.PoseDetector(accurate_mode)
 
-    matcher = SimplePoseMatcher(poses=None)
+    matcher = DeepPoseMatcher(poses=None, model_path=matcher_model)
     target_images, target_poses, target_keypoints, target_scores = get_target_poses(images, accurate_detector)
 
     if str.isdigit(video):
         video = int(video)
 
-    cam = Camera(video, 30)
+    cam = Camera(video, 10)
     cam.start()
 
     temporal_correction = None
@@ -121,7 +121,7 @@ def exerciser(images, matcher_model, kalman_model, video):
     target_index = 0
 
     display = Display(600)
-    score_deque_size = 10
+    score_deque_size = 1
     scores = deque([0 for i in range(score_deque_size)])
     n_frames_pose = 0
     max_frames_pose = 100
@@ -136,9 +136,10 @@ def exerciser(images, matcher_model, kalman_model, video):
                                                                    target_scores[target_index]
         target_image = np.copy(target_image)
         image, count = cam.get()
-        image = cv2.flip(image, 1)
-        image, flag, keypoints, kp_scores = fast_detector.detect(image, crop=True, pad=False)
+        # image = cv2.flip(image, 1)
+        image, flag, keypoints, kp_scores = fast_detector.detect(image, crop=False, pad=True)
         fast_detector.draw(target_image, keypoints, kp_scores)
+        fast_detector.draw(image, target_keypoint, target_score)
 
         pose = utils.pose_scores_to_vector(keypoints, kp_scores)
 
@@ -157,16 +158,17 @@ def exerciser(images, matcher_model, kalman_model, video):
         average_score = sum(scores) / len(scores)
         display.render(image, target_image, average_score*100, timer.elapsed())
         n_frames_pose += 1
-        if timer.elapsed() > 5:
+        if timer.elapsed() > 10:
             timer.reset()
             n_frames_pose = 0
             target_index += 1
             scores = deque([0 for i in range(score_deque_size)])
             continue
 
-        # if average_score > .90:
-        #     target_index += 1
-        #     scores = deque([0 for i in range(10)])
+        if average_score > .90:
+            timer.reset()
+            target_index += 1
+            scores = deque([0 for i in range(score_deque_size)])
 
     cam.stop()
 
@@ -182,8 +184,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     file_paths = list(glob.glob(args.images + "/*"))
-    images = [cv2.imread(f) for  f in sorted(file_paths)]
-    print ("Num Images", len(images))
-
+    images = [cv2.imread(f) for f in sorted(file_paths)]
+    if len(images) == 0:
+        images = get_video_as_frames(args.images)[:1000]
+    print("Num Images", len(images))
 
     exerciser(images, args.matcher, args.kalman, args.video)

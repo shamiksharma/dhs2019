@@ -12,7 +12,7 @@ from sklearn.preprocessing import normalize
 class DeepPoseMatcher:
     def __init__(self, poses, model_path):
         tmp_model = keras.models.load_model(model_path)
-        self.model = tmp_model
+        self.model = extract_embedder(tmp_model)
 
         if poses:
             poses = np.asarray(poses)
@@ -36,7 +36,7 @@ class DeepPoseMatcher:
 class SimplePoseMatcher:
     def __init__(self, poses):
         if poses:
-            self.poses, self.scores = self.get_pose_score(poses)
+            self.poses = poses
 
     def get_pose_score(self, pose_scores):
         poses = np.asarray(pose_scores)[:,:,0:2]
@@ -45,15 +45,17 @@ class SimplePoseMatcher:
         return poses, scores
 
     def match(self, pose):
-        pose, score = self.get_pose_score(np.expand_dims(pose, axis=0))
-        distances = cosine_similarity(pose, self.poses)
-        best_index = np.argmax(distances)
-        best_score = np.max(distances)
+        scores = [self.similarity(pose, tpose) for tpose in self.poses]
+        best_index = np.argmax(scores)
+        best_score = np.max(scores)
+        print(best_score, best_index)
         return int(best_index), best_score
 
     def similarity(self, pose1, pose2):
         pose1, score1 = self.get_pose_score(np.expand_dims(pose1, axis=0))
         pose2, score2 = self.get_pose_score(np.expand_dims(pose2, axis=0))
+        conf_mult = (sum(score1[0]) + sum(score2[0]))/(len(score1[0]) + len(score2[0]))
+        print (conf_mult)
         distances = cosine_similarity(pose1, pose2)
         return distances
 
@@ -83,6 +85,7 @@ def test_matching(images, mode, model, video):
         image, flag, kp, scores = detector.detect(image, crop=False, pad=True)
         pose = utils.pose_scores_to_vector(kp, scores)
         image = detector.draw(image, kp, scores)
+
         if pose is None:
             continue
 
@@ -91,7 +94,7 @@ def test_matching(images, mode, model, video):
 
     images = good_images
 
-    matcher = SimplePoseMatcher(poses)
+    matcher = DeepPoseMatcher(poses, model_path=model)
 
     if str.isdigit(video):
         video = int(video)
@@ -101,7 +104,7 @@ def test_matching(images, mode, model, video):
 
     for i in range(10000000):
         image, count = cam.get()
-        image = cv2.flip(image, 1)
+        # image = cv2.flip(image, 1)
         image, flag, kp, scores = detector.detect(image, crop=True, pad=False)
         pose = utils.pose_scores_to_vector(kp, scores)
         image = detector.draw(image, kp, scores)
@@ -112,9 +115,8 @@ def test_matching(images, mode, model, video):
             continue
 
         best_index, best_score = matcher.match(pose)
-        print (best_score)
-        if best_score > 0.9:
-            cv2.imshow("candidate", images[best_index])
+
+        cv2.imshow("candidate", images[best_index])
 
 
         cv2.waitKey(10)
