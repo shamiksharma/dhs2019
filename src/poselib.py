@@ -6,7 +6,7 @@ import numpy as np
 import utils
 
 pose_detection_tpu = "../weights/tpumodels/posenet_mobilenet_v1_075_481_641_quant_decoder_edgetpu.tflite"
-pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_513x513_multi_kpt_stripped.tflite"
+pose_detection_cpu = "../weights/tpumodels/posenet_mobilenet_v1_100_257x257_multi_kpt_stripped.tflite"
 
 openpose_proto = "../weights/openpose/coco/pose_deploy_linevec.prototxt"
 openpose_model = "../weights/openpose/coco/pose_iter_440000.caffemodel"
@@ -252,7 +252,7 @@ def demo(cam, mode='tpu'):
     # segmenter = PersonSegmentation(False)
     cam.start()
 
-    for i in tqdm(range(10000)):
+    for i in tqdm(range(300)):
         frame, count = cam.get()
         image, pose_flag, keypoints, scores = detector.detect(frame, pad=False, crop=True)
         # heatmap = segmenter.segment(image)
@@ -261,6 +261,8 @@ def demo(cam, mode='tpu'):
         image = detector.draw(image, keypoints, scores)
         cv2.imshow("win1", image)
         cv2.waitKey(1)
+    cam.stop()
+
 
 if __name__ == "__main__":
     from camera import Camera
@@ -276,6 +278,6 @@ if __name__ == "__main__":
     if str.isdigit(args.path):
         path = int(args.path)
 
-    cam = Camera(path, 30)
+    cam = Camera(path, 60)
     demo(cam, args.mode)
 

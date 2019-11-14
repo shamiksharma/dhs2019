@@ -5,13 +5,13 @@ from queue import LifoQueue
 from time import sleep
 
 class Camera(threading.Thread):
-    def __init__(self, path=0, fps=30):
+    def __init__(self, path=0, fps=30,lifosize=1000):
         threading.Thread.__init__(self)
         self.capture = cv2.VideoCapture(path)
         self.capture.set(3, 640)
         self.capture.set(4, 480)
         self.frame_count = 0
-        self.q = LifoQueue(1000)
+        self.q = LifoQueue(lifosize)
         self.fps = fps
 
     def run(self):
@@ -33,14 +33,14 @@ class Camera(threading.Thread):
     def stop(self):
         self.capture.release()
 
-def main():
-    q = Camera()
+def main(lifosize):
+    q = Camera(lifosize=lifosize)
     q.start()
 
     from tqdm import tqdm
     for i in tqdm(range(100)):
         image, frame_count = q.get()
-        delay = random.randint(100, 200)
+        delay = random.randint(50, 100)
         # print (f"delay {delay} frame {frame_count}")
         processed_image = dummy(image, delay)
         cv2.imshow("window", processed_image)
@@ -53,4 +53,6 @@ def dummy(frame, t):
     return frame
 
 if __name__ == "__main__":
-    main()
+    import sys
+    lifosize = sys.argv[1]
+    main(int(lifosize))

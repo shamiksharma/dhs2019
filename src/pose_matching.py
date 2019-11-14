@@ -104,7 +104,7 @@ def test_matching(images, mode, model, video):
 
     for i in range(10000000):
         image, count = cam.get()
-        # image = cv2.flip(image, 1)
+        image = cv2.flip(image, 1)
         image, flag, kp, scores = detector.detect(image, crop=True, pad=False)
         pose = utils.pose_scores_to_vector(kp, scores)
         image = detector.draw(image, kp, scores)
@@ -135,6 +135,6 @@ if __name__ == "__main__":
     file_paths = list(glob.glob(args.images + "/*"))
     images = [cv2.imread(f) for  f in file_paths]
     if len(images) == 0:
-        images = get_video_as_frames(args.images)[:1000]
+        images = get_video_as_frames(args.images)
     print ("Num Images", len(images))
     test_matching(images, args.mode, args.model, args.video)

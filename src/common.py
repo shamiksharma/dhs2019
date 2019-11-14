@@ -13,7 +13,7 @@ sm.set_framework('tf.keras')
 def lr_schedule():
     def lrs(epoch):
         if epoch >= 0: lr = 0.001
-        if epoch >= 5: lr = 0.0001
+        if epoch >= 1: lr = 0.0001
         if epoch >= 10: lr = 0.00005
         return lr
     return keras.callbacks.LearningRateScheduler(lrs, verbose=True)

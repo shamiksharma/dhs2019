@@ -136,8 +136,8 @@ def exerciser(images, matcher_model, kalman_model, video):
                                                                    target_scores[target_index]
         target_image = np.copy(target_image)
         image, count = cam.get()
-        # image = cv2.flip(image, 1)
-        image, flag, keypoints, kp_scores = fast_detector.detect(image, crop=False, pad=True)
+        image = cv2.flip(image, 1)
+        image, flag, keypoints, kp_scores = fast_detector.detect(image, crop=True, pad=False)
         fast_detector.draw(target_image, keypoints, kp_scores)
         fast_detector.draw(image, target_keypoint, target_score)
 
@@ -165,10 +165,10 @@ def exerciser(images, matcher_model, kalman_model, video):
             scores = deque([0 for i in range(score_deque_size)])
             continue
 
-        if average_score > .90:
-            timer.reset()
-            target_index += 1
-            scores = deque([0 for i in range(score_deque_size)])
+        # if average_score > .90:
+        #     timer.reset()
+        #     target_index += 1
+        #     scores = deque([0 for i in range(score_deque_size)])
 
     cam.stop()
 

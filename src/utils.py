@@ -2,7 +2,6 @@ from pathlib import Path
 import cv2
 from tensorflow import keras
 import numpy as np
-from edgetpu.utils import  image_processing
 
 
 data_path = Path('../data/supervisely_segmentation/').expanduser()
@@ -172,9 +171,9 @@ def pad(image, width, height):
 def pose_scores_to_vector(kp, scores):
     if kp is None:
         return None
-    kp = np.asarray(kp)
-    kp[:, 0] = (kp[:, 0] - min(kp[:, 0]))/ (max(kp[:, 0]) - min(kp[:, 0]))
-    kp[:, 1] = (kp[:, 1] - min(kp[:, 1]))/ (max(kp[:, 1]) - min(kp[:, 1]))
+    kp = np.asarray(kp, dtype=np.float32)
+    kp[:, 0] = (kp[:, 0] - min(kp[:, 0])) / (max(kp[:, 0]) - min(kp[:, 0]))
+    kp[:, 1] = (kp[:, 1] - min(kp[:, 1])) / (max(kp[:, 1]) - min(kp[:, 1]))
     scores = np.expand_dims(np.asarray(scores), axis=-1)
     kp = np.hstack((kp, scores))
     return kp

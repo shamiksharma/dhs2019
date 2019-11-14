@@ -52,4 +52,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    compare_speed(args.keras, args.tflite, args.video)
+    if str.isdigit(args.video):
+        video = int(args.video)
+
+    compare_speed(args.keras, args.tflite, video)

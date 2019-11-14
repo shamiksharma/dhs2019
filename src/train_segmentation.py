@@ -10,7 +10,7 @@ import tensorflow as tf
 from common import lr_schedule, get_segmentation_model
 
 
-def train(output_dir, epochs=1):
+def train(output_dir, epochs=10):
     img_size = 128
     batch_size = 4
 
@@ -34,6 +34,7 @@ def train(output_dir, epochs=1):
                                        monitor='val_loss',
                                        save_best_only=True,
                                        verbose=1)
+
 
     callbacks = [lr_schedule(), cp, display_callback]
 
