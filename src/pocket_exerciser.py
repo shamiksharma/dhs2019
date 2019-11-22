@@ -158,7 +158,7 @@ def exerciser(images, matcher_model, kalman_model, video):
         average_score = sum(scores) / len(scores)
         display.render(image, target_image, average_score*100, timer.elapsed())
         n_frames_pose += 1
-        if timer.elapsed() > 10:
+        if timer.elapsed() > 7:
             timer.reset()
             n_frames_pose = 0
             target_index += 1

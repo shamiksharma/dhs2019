@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("--video", default=None, required=True)
 
     args = parser.parse_args()
-
+    video = args.video
     if str.isdigit(args.video):
         video = int(args.video)
 
